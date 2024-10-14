@@ -26,7 +26,7 @@ pipeline {
                     ort \
                     --info analyze \
                     -f JSON \
-                    -i /project \
+                    -i /project/. \
                     -o /project/output/analyzer
                     '''
                 }

@@ -1,65 +1,44 @@
 pipeline {
     agent any
-
-    environment {
-        GITHUB_REPO = 'https://github.com/scanossjeronimo/nginx.git'
-    }
-
+    
     stages {
-        stage('Checkout') {
+
+        stage('Checkout SCM') {
+            steps{
+                checkout scm
+            }
+        }
+        
+        stage('Check ORT is running') {
             steps {
-                git url: "${env.GITHUB_REPO}"
-                sh 'ls -la ${WORKSPACE}'
+                script {
+                    sh 'docker run ort --info'
+                }
             }
         }
 
-        stage('Prepare Output Directories') {
+        stage ('Analyze') {
             steps {
-                sh '''
-                mkdir -p ${WORKSPACE}/ort/analyzer
-                mkdir -p ${WORKSPACE}/ort/scanner
-                chmod -R 777 ${WORKSPACE}/ort
-                ls -la ${WORKSPACE}/ort
-                '''
+                script{
+                    sh 'docker run -v ./:/project ort --info analyze -i /project -o /project/ort -f JSON'
+                }
             }
         }
 
-        stage('ORT Analyze') {
-            steps {
-                sh '''
-                docker run --rm \
-                -v ${WORKSPACE}:/project \
-                -v ${WORKSPACE}/ort/analyzer:/output \
-                --user $(id -u):$(id -g) \
-                ort \
-                analyze -f JSON -i /project -o /output
-                
-                echo "Contents of analyzer output directory:"
-                ls -la ${WORKSPACE}/ort/analyzer
-                '''
+        stage ('Scanner') {
+            steps{
+                script{
+                    sh 'docker run -v ./:/project ort --info scan -i /project/ort/analyzer-result.json -o /project/ort -s SCANOSS -f JSON'
+                }
             }
         }
 
-        stage('ORT Scan') {
-            steps {
-                sh '''
-                docker run --rm \
-                -v ${WORKSPACE}:/project \
-                -v ${WORKSPACE}/ort/scanner:/output \
-                --user $(id -u):$(id -g) \
-                ort \
-                scan -f JSON -i /project -o /output
-                
-                echo "Contents of scanner output directory:"
-                ls -la ${WORKSPACE}/ort/scanner
-                '''
-            }
-        }
     }
-
+    
     post {
         always {
-            archiveArtifacts artifacts: 'ort/**/*', fingerprint: true
+            // Clean up steps
+            cleanWs()
         }
     }
 }

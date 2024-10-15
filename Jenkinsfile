@@ -20,9 +20,11 @@ pipeline {
         stage ('Analyze') {
             steps {
                 script{
+                    def projectDir = sh(script: "basename ${env.WORKSPACE}", returnStdout: true).trim()
+      
                     sh '''
                     docker run \
-                    -v $(WORKSPACE)/:/project \
+                    -v $(env.WORKSPACE)/:/project \
                     ort \
                     --info analyze \
                     -f JSON \
@@ -36,9 +38,11 @@ pipeline {
         stage ('Scanner') {
             steps{
                 script{
+                    def projectDir = sh(script: "basename ${env.WORKSPACE}", returnStdout: true).trim()
+                    
                     sh '''
                     docker run \
-                    -v $(WORKSPACE)/:/project \
+                    -v $(env.WORKSPACE)/:/project \
                     ort \
                     --info analyze \
                     -S SCANOSS \

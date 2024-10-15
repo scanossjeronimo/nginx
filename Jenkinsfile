@@ -1,81 +1,45 @@
 pipeline {
     agent any
-    
+
+    parameters {
+        string(name: 'GITHUB_REPO', defaultValue: 'https://github.com/scanossjeronimo/nginx', description: 'GitHub repository URL to analyze and scan')
+    }
+
     stages {
-        stage('Checkout SCM') {
+        stage('Checkout') {
             steps {
-                checkout scm
-            }
-        }
-        
-        stage('Prepare Output Directory') {
-            steps {
-                sh """
-                mkdir -p ${env.WORKSPACE}/output/analyzer
-                mkdir -p ${env.WORKSPACE}/output/scanner
-                chmod -R 777 ${env.WORKSPACE}/output
-                """
-            }
-        }
-        
-        stage('Check ORT is running') {
-            steps {
-                script {
-                    sh 'docker run --rm ort --info'
-                }
+                git url: "${params.GITHUB_REPO}"
             }
         }
 
-        stage('Verify Analyzed Directory') {
+        stage('ORT Analyze') {
             steps {
-                sh """
+                sh '''
                 docker run --rm \
-                -v "${env.WORKSPACE}:/project:ro" \
-                -v "${env.WORKSPACE}/output:/output" \
-                ubuntu \
-                bash -c "echo 'Contents of /project:' && ls -R /project && echo 'Contents of /output:' && ls -R /output"
-                """
+                -v ${WORKSPACE}:/project \
+                -v ${WORKSPACE}/ort/analyzer:/output \
+                ort \
+                analyze -f JSON -i /project -o /output
+                '''
             }
         }
 
-        stage ('Analyze') {
+        stage('ORT Scan') {
             steps {
-                script {
-                    sh """
-                    docker run --rm \
-                    -v "${env.WORKSPACE}:/project:ro" \
-                    -v "${env.WORKSPACE}/output:/output" \
-                    ort \
-                    --info analyze \
-                    -f JSON \
-                    -i /project \
-                    -o /output/analyzer
-                    """
-                }
-            }
-        }
-        stage ('Scanner') {
-            steps {
-                script {
-                    sh """
-                    docker run --rm \
-                    -v "${env.WORKSPACE}:/project:ro" \
-                    -v "${env.WORKSPACE}/output:/output" \
-                    ort \
-                    --info scan \
-                    -S SCANOSS \
-                    -f JSON \
-                    -i /project \
-                    -o /output/scanner
-                    """
-                }
+                sh '''
+                docker run --rm \
+                -v ${WORKSPACE}:/project \
+                -v ${WORKSPACE}/ort/scanner:/output \
+                ort \
+                scan -f JSON -i /project -o /output
+                '''
             }
         }
     }
-    
+
     post {
         always {
-            cleanWs()
+            archiveArtifacts artifacts: 'ort/**/*', fingerprint: true
         }
     }
 }

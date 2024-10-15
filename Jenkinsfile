@@ -11,8 +11,9 @@ pipeline {
         stage('Prepare Output Directory') {
             steps {
                 sh """
-                mkdir -p ${env.WORKSPACE}/output
-                chmod 777 ${env.WORKSPACE}/output
+                mkdir -p ${env.WORKSPACE}/output/analyzer
+                mkdir -p ${env.WORKSPACE}/output/scanner
+                chmod -R 777 ${env.WORKSPACE}/output
                 """
             }
         }
@@ -40,8 +41,6 @@ pipeline {
         stage ('Analyze') {
             steps {
                 script {
-                    def projectDir = sh(script: "basename ${env.WORKSPACE}", returnStdout: true).trim()
-      
                     sh """
                     docker run --rm \
                     -v "${env.WORKSPACE}:/project:ro" \
@@ -58,8 +57,6 @@ pipeline {
         stage ('Scanner') {
             steps {
                 script {
-                    def projectDir = sh(script: "basename ${env.WORKSPACE}", returnStdout: true).trim()
-                    
                     sh """
                     docker run --rm \
                     -v "${env.WORKSPACE}:/project:ro" \
@@ -78,7 +75,6 @@ pipeline {
     
     post {
         always {
-            // Clean up steps
             cleanWs()
         }
     }

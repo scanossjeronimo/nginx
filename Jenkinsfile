@@ -1,14 +1,26 @@
 pipeline {
     agent any
 
-    parameters {
-        string(name: 'GITHUB_REPO', defaultValue: 'https://github.com/scanossjeronimo/nginx', description: 'GitHub repository URL to analyze and scan')
+    environment {
+        GITHUB_REPO = 'https://github.com/scanossjeronimo/nginx.git'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git url: "${params.GITHUB_REPO}"
+                git url: "${env.GITHUB_REPO}"
+                sh 'ls -la ${WORKSPACE}'
+            }
+        }
+
+        stage('Prepare Output Directories') {
+            steps {
+                sh '''
+                mkdir -p ${WORKSPACE}/ort/analyzer
+                mkdir -p ${WORKSPACE}/ort/scanner
+                chmod -R 777 ${WORKSPACE}/ort
+                ls -la ${WORKSPACE}/ort
+                '''
             }
         }
 
@@ -18,8 +30,12 @@ pipeline {
                 docker run --rm \
                 -v ${WORKSPACE}:/project \
                 -v ${WORKSPACE}/ort/analyzer:/output \
+                --user $(id -u):$(id -g) \
                 ort \
                 analyze -f JSON -i /project -o /output
+                
+                echo "Contents of analyzer output directory:"
+                ls -la ${WORKSPACE}/ort/analyzer
                 '''
             }
         }
@@ -30,8 +46,12 @@ pipeline {
                 docker run --rm \
                 -v ${WORKSPACE}:/project \
                 -v ${WORKSPACE}/ort/scanner:/output \
+                --user $(id -u):$(id -g) \
                 ort \
                 scan -f JSON -i /project -o /output
+                
+                echo "Contents of scanner output directory:"
+                ls -la ${WORKSPACE}/ort/scanner
                 '''
             }
         }

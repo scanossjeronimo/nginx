@@ -8,6 +8,15 @@ pipeline {
             }
         }
         
+        stage('Prepare Output Directory') {
+            steps {
+                sh """
+                mkdir -p ${env.WORKSPACE}/output
+                chmod 777 ${env.WORKSPACE}/output
+                """
+            }
+        }
+        
         stage('Check ORT is running') {
             steps {
                 script {
@@ -15,6 +24,19 @@ pipeline {
                 }
             }
         }
+
+        stage('Verify Analyzed Directory') {
+            steps {
+                sh """
+                docker run --rm \
+                -v "${env.WORKSPACE}:/project:ro" \
+                -v "${env.WORKSPACE}/output:/output" \
+                ubuntu \
+                bash -c "echo 'Contents of /project:' && ls -R /project && echo 'Contents of /output:' && ls -R /output"
+                """
+            }
+        }
+
         stage ('Analyze') {
             steps {
                 script {
